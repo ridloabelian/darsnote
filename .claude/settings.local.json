@@ -8,7 +8,8 @@
       "Bash(npx prisma *)",
       "Bash(npx tsc *)",
       "Bash(npx shadcn@latest *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(grep -E \"^\\(ts-node|tsx|tsup\\)$\")"
     ]
   }
 }

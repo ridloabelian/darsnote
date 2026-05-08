@@ -1,8 +1,33 @@
-import Anthropic from '@anthropic-ai/sdk';
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const MODEL = 'llama-3.1-8b-instant';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-const MODEL = 'claude-sonnet-4-20250514';
+async function callGroq(prompt: string, maxTokens: number = 1024): Promise<string> {
+  await sleep(3000);
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`${response.status} ${err}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
 
 export interface DalilItem {
   type: 'quran' | 'hadits';
@@ -13,65 +38,25 @@ export interface DalilItem {
 }
 
 export async function generateSummary(transcript: string): Promise<string> {
-  const message = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    messages: [
-      {
-        role: 'user',
-        content:
-          'Buat ringkasan singkat dan padat dari transkripsi kajian Islam berikut dalam Bahasa Indonesia. ' +
-          'Fokus pada topik utama, poin-poin penting, dan kesimpulan yang disampaikan:\n\n' +
-          transcript,
-      },
-    ],
-  });
-
-  const block = message.content[0];
-  if (block.type !== 'text') throw new Error('Unexpected Claude response type');
-  return block.text;
+  const trimmed = transcript.slice(0, 3000);
+  return callGroq(
+    'Buat ringkasan singkat dari transkripsi kajian Islam berikut dalam Bahasa Indonesia:\n\n' + trimmed
+  );
 }
 
 export async function detectDalils(transcript: string): Promise<DalilItem[]> {
-  const message = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
-    messages: [
-      {
-        role: 'user',
-        content: `Dari transkripsi kajian Islam berikut, identifikasi semua dalil (ayat Al-Quran dan Hadits) yang disebutkan atau dikutip.
+  const trimmed = transcript.slice(0, 2000);
+  const text = await callGroq(
+    `Dari teks kajian Islam ini, temukan ayat Al-Quran atau Hadits yang disebut. Kembalikan HANYA JSON array:
+[{"type":"quran","reference":"Al-Baqarah: 183","text_ar":"","text_id":"...","confidence":0.9}]
+Jika tidak ada, kembalikan: []
 
-Kembalikan HANYA JSON array (tanpa teks tambahan) dengan format:
-[
-  {
-    "type": "quran",
-    "reference": "Al-Baqarah: 183",
-    "text_ar": "يَا أَيُّهَا الَّذِينَ آمَنُوا...",
-    "text_id": "Wahai orang-orang yang beriman...",
-    "confidence": 0.95
-  }
-]
-
-Aturan:
-- "type": "quran" atau "hadits" saja
-- "reference": nama surat/nomor ayat, atau rawi hadits
-- "text_ar": teks Arab (boleh kosong string jika tidak ada)
-- "text_id": terjemahan Indonesia
-- "confidence": 0.0–1.0
-
-Jika tidak ada dalil, kembalikan: []
-
-Transkripsi:
-${transcript}`,
-      },
-    ],
-  });
-
-  const block = message.content[0];
-  if (block.type !== 'text') return [];
+Teks: ${trimmed}`,
+    1024
+  );
 
   try {
-    const match = block.text.match(/\[[\s\S]*\]/);
+    const match = text.match(/\[[\s\S]*\]/);
     if (!match) return [];
     return JSON.parse(match[0]) as DalilItem[];
   } catch {

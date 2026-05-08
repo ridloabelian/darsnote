@@ -14,7 +14,7 @@ import {
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/transkripsi/baru", label: "Transkripsi Baru", icon: PlusCircle },
+  { href: "/dashboard/transkripsi-baru", label: "Transkripsi Baru", icon: PlusCircle },
   { href: "/dashboard/riwayat", label: "Riwayat", icon: Clock },
 ];
 

@@ -9,7 +9,9 @@
       "Bash(npx tsc *)",
       "Bash(npx shadcn@latest *)",
       "Bash(npm run *)",
-      "Bash(grep -E \"^\\(ts-node|tsx|tsup\\)$\")"
+      "Bash(grep -E \"^\\(ts-node|tsx|tsup\\)$\")",
+      "Bash(chmod +x *)",
+      "Bash(sudo -u postgres createdb darsnote)"
     ]
   }
 }

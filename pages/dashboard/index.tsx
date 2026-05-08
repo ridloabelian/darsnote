@@ -110,7 +110,7 @@ export default function DashboardPage({
             asChild
             className="bg-[#1A5276] hover:bg-[#154360] gap-2 flex-shrink-0"
           >
-            <Link href="/dashboard/transkripsi/baru">
+            <Link href="/dashboard/transkripsi-baru">
               <PlusCircle size={16} />
               Mulai Sekarang
             </Link>

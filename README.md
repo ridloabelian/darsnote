@@ -2,7 +2,7 @@
 
 Platform SaaS AI transkripsi kajian Islam — [dars.saif.co.id](https://dars.saif.co.id)
 
-**Stack:** Next.js 14 · TypeScript · Tailwind CSS · Prisma + PostgreSQL · NextAuth.js · BullMQ + Redis · Groq Whisper · Claude AI · yt-dlp
+**Stack:** Next.js 14 · TypeScript · Tailwind CSS · Prisma + PostgreSQL · NextAuth.js · BullMQ + Redis · Groq (Whisper & Llama 3.1) · yt-dlp
 
 ---
 

@@ -1,4 +1,6 @@
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+import Groq from 'groq-sdk';
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MODEL = 'llama-3.1-8b-instant';
 
 async function sleep(ms: number) {
@@ -6,27 +8,16 @@ async function sleep(ms: number) {
 }
 
 async function callGroq(prompt: string, maxTokens: number = 1024): Promise<string> {
+  // Sleep untuk menghindari rate limit pada tier gratis/rendah
   await sleep(3000);
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+  
+  const response = await groq.chat.completions.create({
+    model: MODEL,
+    max_tokens: maxTokens,
+    messages: [{ role: 'user', content: prompt }],
   });
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`${response.status} ${err}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0].message.content;
+  return response.choices[0]?.message?.content || '';
 }
 
 export interface DalilItem {

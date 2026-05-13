@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { prisma } from '../lib/prisma';
 import { transcribeAudio } from '../lib/groq';
-import { generateSummary, detectDalils } from '../lib/claude';
+import { generateSummary, detectDalils } from '../lib/analysis';
 import { downloadYoutubeAudio } from '../lib/ytdlp';
 import type { TranscriptionJobData } from '../lib/queue';
 

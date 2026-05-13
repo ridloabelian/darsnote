@@ -181,7 +181,7 @@ export default function TranskripsiDetailPage() {
                 <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6 space-y-3">
                   {[
                     { icon: '🎙️', label: 'Mentranskripsi audio dengan Whisper...' },
-                    { icon: '📝', label: 'Membuat ringkasan dengan Claude AI...' },
+                    { icon: '📝', label: 'Membuat ringkasan dengan AI...' },
                     { icon: '📖', label: 'Mendeteksi dalil Al-Quran & Hadits...' },
                   ].map((step, i) => (
                     <div key={i} className="flex items-center gap-3 text-sm text-gray-600">

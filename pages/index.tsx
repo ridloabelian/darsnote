@@ -172,7 +172,7 @@ export default function Home() {
                   Ringkasan Otomatis
                 </h3>
                 <p className="text-gray-500 text-sm leading-relaxed">
-                  Claude AI merangkum poin-poin penting kajian secara
+                  AI pintar merangkum poin-poin penting kajian secara
                   terstruktur — tema, isi utama, dan kesimpulan — dalam
                   bahasa Indonesia yang mudah dipahami.
                 </p>

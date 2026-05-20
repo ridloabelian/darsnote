@@ -11,10 +11,22 @@ import { UploadCloud, Link2, AlertCircle, FileAudio } from 'lucide-react';
 
 const ALLOWED_EXTENSIONS = ['mp4', 'mov', 'avi', 'wav', 'mp3', 'm4a', 'flac', 'ogg', 'aac'];
 const MAX_SIZE_MB = 500;
+const DEFAULT_PART_SIZE_BYTES = 8 * 1024 * 1024;
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function validateFile(file: File): string {
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return `Format tidak didukung. Gunakan: ${ALLOWED_EXTENSIONS.join(', ')}`;
+  }
+  if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+    return `Ukuran file maksimal ${MAX_SIZE_MB}MB`;
+  }
+  return '';
 }
 
 const YOUTUBE_REGEX =
@@ -33,31 +45,21 @@ export default function TranskripsiBaruPage() {
   const [youtubeError, setYoutubeError] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [loadingLabel, setLoadingLabel] = useState('');
   const [error, setError] = useState('');
 
-  function validateFile(file: File): string {
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      return `Format tidak didukung. Gunakan: ${ALLOWED_EXTENSIONS.join(', ')}`;
-    }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      return `Ukuran file maksimal ${MAX_SIZE_MB}MB`;
-    }
-    return '';
-  }
-
-  function handleFileSelect(file: File) {
+  const handleFileSelect = useCallback((file: File) => {
     const err = validateFile(file);
     setFileError(err);
     if (!err) setSelectedFile(file);
-  }
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFileSelect(file);
-  }, []);
+  }, [handleFileSelect]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -73,22 +75,80 @@ export default function TranskripsiBaruPage() {
   async function handleFileSubmit() {
     if (!selectedFile) return setError('Pilih file terlebih dahulu');
     setLoading(true);
+    setLoadingLabel('Menyiapkan upload...');
     setError('');
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
     try {
-      const res = await fetch('/api/transcriptions/upload', {
+      const prepareRes = await fetch('/api/transcriptions/upload', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: selectedFile.name,
+          contentType: selectedFile.type || 'application/octet-stream',
+          sizeBytes: selectedFile.size,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload gagal');
-      router.push(`/dashboard/transkripsi/${data.transcriptionId}`);
+      const uploadData = (await prepareRes.json()) as {
+        error?: string;
+        transcriptionId: string;
+        uploadId: string;
+        partSizeBytes?: number;
+      };
+      if (!prepareRes.ok) throw new Error(uploadData.error || 'Gagal menyiapkan upload');
+
+      const partSize = uploadData.partSizeBytes || DEFAULT_PART_SIZE_BYTES;
+      const totalParts = Math.ceil(selectedFile.size / partSize);
+      const uploadedParts: Array<{ partNumber: number; etag: string }> = [];
+
+      for (let index = 0; index < totalParts; index += 1) {
+        const partNumber = index + 1;
+        const start = index * partSize;
+        const end = Math.min(start + partSize, selectedFile.size);
+        const chunk = selectedFile.slice(start, end);
+
+        setLoadingLabel(`Mengunggah bagian ${partNumber}/${totalParts}...`);
+        const partRes = await fetch(
+          `/api/transcriptions/upload-part?transcriptionId=${encodeURIComponent(
+            uploadData.transcriptionId
+          )}&uploadId=${encodeURIComponent(uploadData.uploadId)}&partNumber=${partNumber}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: chunk,
+          }
+        );
+        const partData = (await partRes.json()) as {
+          error?: string;
+          partNumber: number;
+          etag: string;
+        };
+        if (!partRes.ok) {
+          throw new Error(partData.error || `Upload bagian ${partNumber} gagal`);
+        }
+        uploadedParts.push({ partNumber: partData.partNumber, etag: partData.etag });
+      }
+
+      setLoadingLabel('Memulai workflow...');
+      const completeRes = await fetch('/api/transcriptions/complete-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcriptionId: uploadData.transcriptionId,
+          uploadId: uploadData.uploadId,
+          parts: uploadedParts,
+        }),
+      });
+      const completeData = (await completeRes.json()) as {
+        error?: string;
+        transcriptionId: string;
+      };
+      if (!completeRes.ok) throw new Error(completeData.error || 'Gagal memulai workflow');
+
+      router.push(`/dashboard/transkripsi/${completeData.transcriptionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
       setLoading(false);
+      setLoadingLabel('');
     }
   }
 
@@ -97,6 +157,7 @@ export default function TranskripsiBaruPage() {
     if (urlErr) return setYoutubeError(urlErr);
 
     setLoading(true);
+    setLoadingLabel('Memulai workflow...');
     setError('');
 
     try {
@@ -105,12 +166,13 @@ export default function TranskripsiBaruPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: youtubeUrl.trim() }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as { error?: string; transcriptionId: string };
       if (!res.ok) throw new Error(data.error || 'Gagal menambahkan job');
       router.push(`/dashboard/transkripsi/${data.transcriptionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
       setLoading(false);
+      setLoadingLabel('');
     }
   }
 
@@ -216,7 +278,7 @@ export default function TranskripsiBaruPage() {
                 disabled={!selectedFile || !!fileError || loading}
                 className="w-full bg-[#1A5276] hover:bg-[#154360] text-white"
               >
-                {loading ? 'Mengunggah...' : 'Mulai Transkripsi'}
+                {loading ? loadingLabel || 'Memproses...' : 'Mulai Transkripsi'}
               </Button>
             </div>
           )}
@@ -259,7 +321,7 @@ export default function TranskripsiBaruPage() {
                 disabled={loading}
                 className="w-full bg-[#1A5276] hover:bg-[#154360] text-white"
               >
-                {loading ? 'Memproses...' : 'Mulai Transkripsi'}
+                {loading ? loadingLabel || 'Memproses...' : 'Mulai Transkripsi'}
               </Button>
             </div>
           )}

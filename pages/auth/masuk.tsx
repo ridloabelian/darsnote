@@ -8,7 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function MasukPage() {
+interface MasukPageProps {
+  googleEnabled: boolean;
+}
+
+export default function MasukPage({ googleEnabled }: MasukPageProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,25 +60,39 @@ export default function MasukPage() {
           <h1 className="text-2xl font-bold text-[#1A5276] mb-1">Selamat datang kembali</h1>
           <p className="text-gray-500 text-sm mb-6">Masuk ke akun DarsNote Anda</p>
 
-          {/* Google */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full mb-4 gap-3"
-            onClick={handleGoogle}
-          >
-            <GoogleIcon />
-            Masuk dengan Google
-          </Button>
+          {googleEnabled && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mb-4 gap-3"
+                onClick={handleGoogle}
+              >
+                <GoogleIcon />
+                Masuk dengan Google
+              </Button>
 
-          <div className="relative mb-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
+              <div className="relative mb-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-xs text-gray-400">
+                  <span className="bg-white px-3">atau dengan email</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {!googleEnabled && (
+            <div className="relative mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs text-gray-400">
+                <span className="bg-white px-3">masuk dengan email</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs text-gray-400">
-              <span className="bg-white px-3">atau dengan email</span>
-            </div>
-          </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
@@ -147,5 +165,9 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   if (session) {
     return { redirect: { destination: "/dashboard", permanent: false } };
   }
-  return { props: {} };
+  return {
+    props: {
+      googleEnabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    },
+  };
 };

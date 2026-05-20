@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { GetServerSideProps } from 'next';
@@ -22,7 +22,7 @@ interface Transcription {
   title: string;
   sourceType: string;
   sourceUrl: string | null;
-  status: 'queued' | 'processing' | 'completed' | 'failed';
+  status: 'uploading' | 'queued' | 'processing' | 'completed' | 'failed';
   durationSeconds: number | null;
   transcriptText: string | null;
   summaryText: string | null;
@@ -32,6 +32,11 @@ interface Transcription {
 }
 
 const STATUS_CONFIG = {
+  uploading: {
+    label: 'Menunggu upload selesai...',
+    color: 'text-gray-700 bg-gray-50 border-gray-200',
+    dot: 'bg-gray-400',
+  },
   queued: {
     label: 'Menunggu di antrian...',
     color: 'text-yellow-700 bg-yellow-50 border-yellow-200',
@@ -71,12 +76,12 @@ export default function TranskripsiDetailPage() {
   );
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  async function fetchStatus() {
+  const fetchStatus = useCallback(async () => {
     if (!id || typeof id !== 'string') return;
     try {
       const res = await fetch(`/api/transcriptions/${id}`);
       if (!res.ok) {
-        const d = await res.json();
+        const d = (await res.json()) as { error?: string };
         setFetchError(d.error || 'Gagal memuat data');
         return;
       }
@@ -88,7 +93,7 @@ export default function TranskripsiDetailPage() {
     } catch {
       setFetchError('Koneksi bermasalah, mencoba ulang...');
     }
-  }
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -97,7 +102,7 @@ export default function TranskripsiDetailPage() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [id]);
+  }, [id, fetchStatus]);
 
   const isDone = data?.status === 'completed' || data?.status === 'failed';
   const statusCfg = data ? STATUS_CONFIG[data.status] : null;
@@ -181,7 +186,7 @@ export default function TranskripsiDetailPage() {
                 <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6 space-y-3">
                   {[
                     { icon: '🎙️', label: 'Mentranskripsi audio dengan Whisper...' },
-                    { icon: '📝', label: 'Membuat ringkasan dengan AI...' },
+                    { icon: '📝', label: 'Membuat ringkasan dengan Groq...' },
                     { icon: '📖', label: 'Mendeteksi dalil Al-Quran & Hadits...' },
                   ].map((step, i) => (
                     <div key={i} className="flex items-center gap-3 text-sm text-gray-600">

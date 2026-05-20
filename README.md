@@ -2,146 +2,80 @@
 
 Platform SaaS AI transkripsi kajian Islam — [dars.saif.co.id](https://dars.saif.co.id)
 
-**Stack:** Next.js 14 · TypeScript · Tailwind CSS · Prisma + PostgreSQL · NextAuth.js · BullMQ + Redis · Groq (Whisper & Llama 3.1) · yt-dlp
+**Stack:** Next.js 15 · TypeScript · Tailwind CSS · Prisma + Cloudflare D1 · NextAuth.js · Cloudflare R2 · Cloudflare Workflows · Cloudflare Containers · Groq Whisper/LLM · yt-dlp
 
 ---
 
-## Development (Setup Lokal)
+## Arsitektur Hosting
+
+DarsNote sekarang ditargetkan full Cloudflare:
+
+- **Cloudflare Workers + OpenNext** untuk Next.js SSR/API.
+- **Cloudflare D1** untuk database aplikasi dan NextAuth.
+- **Cloudflare R2** untuk upload media dan cache OpenNext.
+- **Cloudflare Workflows** untuk orchestration job transkripsi async.
+- **Cloudflare Containers** untuk proses media yang butuh Linux runtime, `yt-dlp`, `ffmpeg`, dan filesystem.
+
+Jalur VPS lama (`PM2`, `Nginx`, `PostgreSQL`, `Redis`, `BullMQ`) sudah tidak dipakai.
+
+---
+
+## Development Lokal
 
 ### Prasyarat
 
-- Node.js 20+
-- PostgreSQL 15+
-- Redis 7+
-- `yt-dlp` tersedia di PATH (`pip install yt-dlp` atau binary dari [yt-dlp.org](https://github.com/yt-dlp/yt-dlp/releases))
+- Node.js 20+.
+- Cloudflare Wrangler login.
+- Docker CLI/daemon untuk build Cloudflare Container image.
+- Cloudflare Workers Paid jika ingin menjalankan Containers.
 
-### Langkah Setup
+### Setup
 
 ```bash
-# 1. Clone repo
-git clone https://github.com/saif-digital/darsnote.git
-cd darsnote
-
-# 2. Install dependensi
 npm install
-
-# 3. Salin dan isi environment variables
-cp .env.example .env
-# Edit .env — isi DATABASE_URL, NEXTAUTH_SECRET, GROQ_API_KEY, ANTHROPIC_API_KEY, dst.
-
-# 4. Jalankan migrasi database
-npx prisma migrate dev
-
-# 5. Jalankan Next.js dev server
-npm run dev
-
-# 6. Di terminal terpisah, jalankan BullMQ worker
-npm run worker
+cp .dev.vars.example .dev.vars
 ```
 
-Buka [http://localhost:3000](http://localhost:3000) di browser.
+Isi `.dev.vars` dengan `NEXTAUTH_SECRET`, kredensial Google OAuth, dan `GROQ_API_KEY`.
 
----
-
-## Deployment ke VPS (IDCloudHost Ubuntu 22.04)
-
-### 1. Persiapan Server (sekali saja)
+### Resource Cloudflare
 
 ```bash
-# Install Node.js 20 via nvm
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-nvm install 20 && nvm use 20 && nvm alias default 20
-
-# Install PM2
-npm install -g pm2
-
-# Install PostgreSQL & Redis
-sudo apt install -y postgresql redis-server
-
-# Install yt-dlp
-sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
-sudo chmod +x /usr/local/bin/yt-dlp
-
-# Buat database PostgreSQL
-sudo -u postgres psql -c "CREATE USER darsnote WITH PASSWORD 'GANTI_PASSWORD';"
-sudo -u postgres psql -c "CREATE DATABASE darsnote OWNER darsnote;"
-
-# Clone repo ke server
-sudo mkdir -p /var/www/darsnote
-sudo chown $USER:$USER /var/www/darsnote
-git clone https://github.com/saif-digital/darsnote.git /var/www/darsnote
-
-# Buat file environment production
-cp /var/www/darsnote/.env.example /var/www/darsnote/.env.production
-# Edit .env.production dengan nilai produksi yang benar
-nano /var/www/darsnote/.env.production
+npx wrangler d1 create darsnote
+npx wrangler r2 bucket create darsnote-media
+npx wrangler r2 bucket create darsnote-next-cache
+npx wrangler r2 bucket cors set darsnote-media --file cloudflare/r2-cors.json --force
 ```
 
-### 2. Deploy Pertama Kali
+Masukkan `database_id` dari output `d1 create` ke `wrangler.jsonc`.
+
+Apply schema D1:
 
 ```bash
-cd /var/www/darsnote
-npm install --production=false
-npx prisma migrate deploy
-npm run build
-
-# Jalankan dengan PM2
-pm2 start ecosystem.config.js --env production
-pm2 save
-pm2 startup   # ikuti instruksi yang muncul agar PM2 auto-start
+npm run d1:migrate:local
+npm run d1:migrate:remote
 ```
 
-### 3. Setup Nginx
+Set secrets production:
 
 ```bash
-# Salin konfigurasi
-sudo cp nginx/darsnote.conf /etc/nginx/sites-available/darsnote
-sudo ln -s /etc/nginx/sites-available/darsnote /etc/nginx/sites-enabled/
-
-# Uji konfigurasi
-sudo nginx -t
-
-# Reload Nginx
-sudo systemctl reload nginx
-
-# Install SSL via Certbot
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d dars.saif.co.id
+npx wrangler secret put NEXTAUTH_SECRET
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put GROQ_API_KEY
 ```
 
-### 4. Deploy Update Selanjutnya
+Preview lokal di runtime Workers:
 
 ```bash
-bash /var/www/darsnote/scripts/deploy.sh
+npm run preview
 ```
 
-Script ini otomatis: `git pull` → `npm install` → `prisma migrate deploy` → `npm run build` → `pm2 reload`.
+Deploy:
 
----
-
-## Menjalankan Worker
-
-Worker BullMQ berjalan sebagai proses terpisah dari Next.js app.
-
-**Lokal:**
 ```bash
-npm run worker
+npm run deploy
 ```
-
-**Produksi (PM2):**
-Worker sudah termasuk dalam `ecosystem.config.js` sebagai `darsnote-worker` dan dijalankan bersama `pm2 start ecosystem.config.js`.
-
-Monitor status:
-```bash
-pm2 status
-pm2 logs darsnote-worker
-```
-
----
-
-## Environment Variables
-
-Lihat [`.env.example`](.env.example) untuk daftar lengkap beserta penjelasan tiap variabel.
 
 ---
 
@@ -150,23 +84,31 @@ Lihat [`.env.example`](.env.example) untuk daftar lengkap beserta penjelasan tia
 ```
 pages/
   dashboard/
-    index.tsx          # Dashboard utama (kuota)
-    riwayat.tsx        # Riwayat transkripsi
+    index.tsx
+    riwayat.tsx
     transkripsi-baru.tsx
     transkripsi/[id].tsx
   api/
     transcriptions/
-      index.ts         # GET list transkripsi
-      [id].ts          # GET detail
-      upload.ts        # POST upload file audio
-      youtube.ts       # POST submit URL YouTube
-      export/[id].ts   # GET download TXT
-workers/
-  transcription.worker.ts  # BullMQ worker (Whisper + Claude)
-scripts/
-  deploy.sh            # Script deploy manual
-ecosystem.config.js    # Konfigurasi PM2
-nginx/darsnote.conf    # Konfigurasi Nginx
+      index.ts
+      [id].ts
+      upload.ts              # create R2 multipart upload
+      upload-part.ts         # upload chunk ke R2 multipart
+      complete-upload.ts     # trigger Workflow
+      youtube.ts             # trigger Workflow YouTube
+      export/[id].ts
+cloudflare/
+  web-worker.ts              # custom OpenNext Worker + Workflow + Container binding
+  media-container/
+    Dockerfile
+    server.js                # yt-dlp + Groq processing
+  r2-cors.json
+prisma/
+  schema.prisma              # SQLite/D1 schema
+  d1-migrations/
+    0001_init.sql
+wrangler.jsonc               # Cloudflare bindings/resources
+open-next.config.ts          # OpenNext Cloudflare config
 ```
 
 ---

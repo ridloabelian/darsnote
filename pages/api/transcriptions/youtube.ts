@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { addTranscriptionJob } from '@/lib/queue';
+import { startTranscriptionWorkflow } from '@/lib/transcription-workflow';
 
 const YOUTUBE_REGEX =
   /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)[\w-]{11}/;
@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     },
   });
 
-  await addTranscriptionJob({
+  await startTranscriptionWorkflow({
     transcriptionId: transcription.id,
     userId: session.user.id,
     sourceType: 'youtube',

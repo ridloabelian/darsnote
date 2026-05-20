@@ -8,7 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function DaftarPage() {
+interface DaftarPageProps {
+  googleEnabled: boolean;
+}
+
+export default function DaftarPage({ googleEnabled }: DaftarPageProps) {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -29,7 +33,7 @@ export default function DaftarPage() {
       body: JSON.stringify(form),
     });
 
-    const data = await res.json();
+    const data = (await res.json()) as { message?: string };
 
     if (!res.ok) {
       setLoading(false);
@@ -74,24 +78,39 @@ export default function DaftarPage() {
             Gratis 30 menit transkripsi untuk pengguna baru
           </p>
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full mb-4 gap-3"
-            onClick={handleGoogle}
-          >
-            <GoogleIcon />
-            Daftar dengan Google
-          </Button>
+          {googleEnabled && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mb-4 gap-3"
+                onClick={handleGoogle}
+              >
+                <GoogleIcon />
+                Daftar dengan Google
+              </Button>
 
-          <div className="relative mb-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
+              <div className="relative mb-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-xs text-gray-400">
+                  <span className="bg-white px-3">atau dengan email</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {!googleEnabled && (
+            <div className="relative mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs text-gray-400">
+                <span className="bg-white px-3">daftar dengan email</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs text-gray-400">
-              <span className="bg-white px-3">atau dengan email</span>
-            </div>
-          </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
@@ -187,5 +206,9 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   if (session) {
     return { redirect: { destination: "/dashboard", permanent: false } };
   }
-  return { props: {} };
+  return {
+    props: {
+      googleEnabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    },
+  };
 };

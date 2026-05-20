@@ -1,0 +1,84 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "darsnote",
+  "main": "cloudflare/web-worker.ts",
+  "base_dir": ".open-next/server-functions/default",
+  "find_additional_modules": true,
+  "compatibility_date": "2026-05-20",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "darsnote"
+    }
+  ],
+  "vars": {
+    "NEXTJS_ENV": "production",
+    "DATABASE_URL": "file:./prisma/local.db",
+    "NEXTAUTH_URL": "https://dars.saif.co.id",
+    "GROQ_TEXT_MODEL": "llama-3.1-8b-instant",
+    "R2_BUCKET_NAME": "darsnote-media"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "darsnote",
+      "database_id": "8c714ee4-2b06-4abc-ac79-bd5ffc8d1540",
+      "migrations_dir": "prisma/d1-migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "darsnote-media"
+    },
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "darsnote-next-cache"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "darsnote-transcription",
+      "binding": "TRANSCRIPTION_WORKFLOW",
+      "class_name": "TranscriptionWorkflow",
+      "limits": {
+        "steps": 1000
+      }
+    }
+  ],
+  "containers": [
+    {
+      "class_name": "MediaProcessorContainer",
+      "image": "./cloudflare/media-container/Dockerfile",
+      "max_instances": 3,
+      "instance_type": "basic"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "MediaProcessorContainer",
+        "name": "MEDIA_PROCESSOR"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "MediaProcessorContainer"
+      ]
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  }
+}

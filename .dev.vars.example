@@ -1,0 +1,13 @@
+NEXTJS_ENV=production
+DATABASE_URL=file:./prisma/local.db
+R2_BUCKET_NAME=darsnote-media
+GROQ_TEXT_MODEL=llama-3.1-8b-instant
+
+# Required for NextAuth and OAuth in local Cloudflare preview.
+NEXTAUTH_URL=http://localhost:8787
+NEXTAUTH_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Required for Groq Whisper and LLM post-processing.
+GROQ_API_KEY=

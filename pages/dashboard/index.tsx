@@ -22,17 +22,18 @@ interface Transcription {
 interface Props {
   userName: string;
   quotaMinutes: number;
-  usedMinutes: number;
   totalTranscriptions: number;
   totalDalils: number;
   recentTranscriptions: Transcription[];
 }
 
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  done: { label: "Selesai", variant: "default" },
+  completed: { label: "Selesai", variant: "default" },
+  uploading: { label: "Upload", variant: "outline" },
+  queued: { label: "Antrian", variant: "outline" },
   processing: { label: "Diproses", variant: "secondary" },
   pending: { label: "Menunggu", variant: "outline" },
-  error: { label: "Gagal", variant: "destructive" },
+  failed: { label: "Gagal", variant: "destructive" },
 };
 
 function formatDuration(seconds: number | null) {
@@ -45,7 +46,6 @@ function formatDuration(seconds: number | null) {
 export default function DashboardPage({
   userName,
   quotaMinutes,
-  usedMinutes,
   totalTranscriptions,
   totalDalils,
   recentTranscriptions,
@@ -70,7 +70,7 @@ export default function DashboardPage({
 
         {/* Top cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <QuotaCard usedMinutes={usedMinutes} totalMinutes={quotaMinutes} />
+          <QuotaCard remainingMinutes={quotaMinutes} totalMinutes={30} />
 
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
             <div className="flex items-start justify-between mb-3">
@@ -219,18 +219,10 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       }),
     ]);
 
-  const usedSeconds = await prisma.transcription.aggregate({
-    where: { userId, status: "done" },
-    _sum: { durationSeconds: true },
-  });
-
-  const usedMinutes = Math.ceil((usedSeconds._sum.durationSeconds ?? 0) / 60);
-
   return {
     props: {
       userName: user?.name ?? "Pengguna",
       quotaMinutes: user?.quotaMinutes ?? 30,
-      usedMinutes,
       totalTranscriptions,
       totalDalils,
       recentTranscriptions: recentTranscriptions.map((t) => ({

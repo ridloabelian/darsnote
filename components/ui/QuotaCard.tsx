@@ -1,12 +1,13 @@
 import { cn } from "@/lib/utils";
 
 interface QuotaCardProps {
-  usedMinutes: number;
+  remainingMinutes: number;
   totalMinutes: number;
 }
 
-export default function QuotaCard({ usedMinutes, totalMinutes }: QuotaCardProps) {
-  const remaining = totalMinutes - usedMinutes;
+export default function QuotaCard({ remainingMinutes, totalMinutes }: QuotaCardProps) {
+  const remaining = Math.max(remainingMinutes, 0);
+  const usedMinutes = Math.max(totalMinutes - remaining, 0);
   const pct = Math.min((usedMinutes / totalMinutes) * 100, 100);
   const low = pct >= 80;
 

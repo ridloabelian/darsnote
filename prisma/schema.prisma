@@ -3,7 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -29,12 +30,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -68,9 +69,12 @@ model Transcription {
   sourceType      String
   sourceUrl       String?
   status          String   @default("pending")
+  sourceObjectKey String?
+  sourceSizeBytes Int?
+  sourceContentType String?
   durationSeconds Int?
-  transcriptText  String?  @db.Text
-  summaryText     String?  @db.Text
+  transcriptText  String?
+  summaryText     String?
   errorMessage    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -85,8 +89,8 @@ model Dalil {
   transcriptionId String
   type            String
   reference       String
-  textAr          String?       @db.Text
-  textId          String?       @db.Text
+  textAr          String?
+  textId          String?
   confidence      Float         @default(0)
   transcription   Transcription @relation(fields: [transcriptionId], references: [id], onDelete: Cascade)
 

@@ -5,19 +5,20 @@ import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Loader2, AlertCircle, FileAudio, Youtube, Clock, Calendar } from 'lucide-react';
+import { Loader2, AlertCircle, FileAudio, Link2, Clock, Calendar } from 'lucide-react';
 
 interface TranscriptionRow {
   id: string;
   title: string;
   sourceType: 'file' | 'youtube';
-  status: 'pending' | 'queued' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'uploading' | 'queued' | 'processing' | 'completed' | 'failed';
   durationSeconds: number | null;
   createdAt: string;
 }
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   pending: { label: 'Antrian', className: 'bg-gray-100 text-gray-600' },
+  uploading: { label: 'Upload', className: 'bg-gray-100 text-gray-600' },
   queued: { label: 'Antrian', className: 'bg-gray-100 text-gray-600' },
   processing: { label: 'Memproses', className: 'bg-yellow-100 text-yellow-700' },
   completed: { label: 'Selesai', className: 'bg-green-100 text-green-700' },
@@ -47,9 +48,9 @@ export default function RiwayatPage() {
   useEffect(() => {
     fetch('/api/transcriptions')
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: unknown) => {
         if (Array.isArray(data)) setRows(data);
-        else setError(data.error || 'Gagal memuat riwayat');
+        else setError((data as { error?: string }).error || 'Gagal memuat riwayat');
       })
       .catch(() => setError('Koneksi bermasalah'))
       .finally(() => setLoading(false));
@@ -127,7 +128,7 @@ export default function RiwayatPage() {
                     <span className="flex items-center gap-1.5 text-xs text-gray-500">
                       {row.sourceType === 'youtube' ? (
                         <>
-                          <Youtube size={13} className="text-red-500 flex-shrink-0" />
+                          <Link2 size={13} className="text-red-500 flex-shrink-0" />
                           YouTube
                         </>
                       ) : (

@@ -11,7 +11,10 @@
       "Bash(npm run *)",
       "Bash(grep -E \"^\\(ts-node|tsx|tsup\\)$\")",
       "Bash(chmod +x *)",
-      "Bash(sudo -u postgres createdb darsnote)"
+      "Bash(sudo -u postgres createdb darsnote)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

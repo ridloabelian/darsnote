@@ -85,6 +85,7 @@ export class TranscriptionWorkflow extends WorkflowEntrypoint<
               body: JSON.stringify({
                 ...payload,
                 r2BaseUrl: "http://r2.local",
+                groqApiKey: this.env.GROQ_API_KEY,
               }),
             }
           );

@@ -9,7 +9,6 @@ import { promisify } from "node:util";
 import Groq from "groq-sdk";
 
 const execFileAsync = promisify(execFile);
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const TEXT_MODEL = process.env.GROQ_TEXT_MODEL || "llama-3.1-8b-instant";
 
 function json(res, status, body) {
@@ -55,7 +54,7 @@ async function downloadYoutubeAudio(url, outputPath) {
   );
 }
 
-async function transcribeAudio(filePath) {
+async function transcribeAudio(groq, filePath) {
   const response = await groq.audio.transcriptions.create({
     file: createReadStream(filePath),
     model: "whisper-large-v3-turbo",
@@ -68,7 +67,7 @@ async function transcribeAudio(filePath) {
   };
 }
 
-async function callGroq(prompt, maxTokens = 1024) {
+async function callGroq(groq, prompt, maxTokens = 1024) {
   const response = await groq.chat.completions.create({
     model: TEXT_MODEL,
     max_tokens: maxTokens,
@@ -78,17 +77,19 @@ async function callGroq(prompt, maxTokens = 1024) {
   return response.choices[0]?.message?.content || "";
 }
 
-async function generateSummary(transcript) {
+async function generateSummary(groq, transcript) {
   const trimmed = transcript.slice(0, 3000);
   return callGroq(
+    groq,
     `Buat ringkasan singkat dari transkripsi kajian Islam berikut dalam Bahasa Indonesia:\n\n${trimmed}`,
     1024
   );
 }
 
-async function detectDalils(transcript) {
+async function detectDalils(groq, transcript) {
   const trimmed = transcript.slice(0, 2000);
   const text = await callGroq(
+    groq,
     `Dari teks kajian Islam ini, temukan ayat Al-Quran atau Hadits yang disebut. Kembalikan HANYA JSON array:
 [{"type":"quran","reference":"Al-Baqarah: 183","text_ar":"","text_id":"...","confidence":0.9}]
 Jika tidak ada, kembalikan: []
@@ -109,9 +110,12 @@ Teks: ${trimmed}`,
 }
 
 async function processJob(payload) {
-  if (!process.env.GROQ_API_KEY) {
+  const apiKey = payload.groqApiKey || process.env.GROQ_API_KEY;
+  if (!apiKey) {
     throw new Error("GROQ_API_KEY belum dikonfigurasi untuk media container");
   }
+
+  const groq = new Groq({ apiKey });
 
   const ext = extname(payload.originalName || "") || ".mp3";
   const safeBase = basename(payload.transcriptionId).replace(/[^a-zA-Z0-9_-]/g, "");
@@ -126,9 +130,9 @@ async function processJob(payload) {
       await downloadR2Object(payload.r2BaseUrl, payload.sourceObjectKey, audioPath);
     }
 
-    const { text, durationSeconds } = await transcribeAudio(audioPath);
-    const summary = await generateSummary(text);
-    const dalils = await detectDalils(text);
+    const { text, durationSeconds } = await transcribeAudio(groq, audioPath);
+    const summary = await generateSummary(groq, text);
+    const dalils = await detectDalils(groq, text);
 
     return {
       text,

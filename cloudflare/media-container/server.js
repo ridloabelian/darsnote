@@ -78,24 +78,79 @@ async function callGroq(groq, prompt, maxTokens = 1024) {
 }
 
 async function generateSummary(groq, transcript) {
-  const trimmed = transcript.slice(0, 3000);
+  const trimmed = transcript.slice(0, 25000);
   return callGroq(
     groq,
-    `Buat ringkasan singkat dari transkripsi kajian Islam berikut dalam Bahasa Indonesia:\n\n${trimmed}`,
-    1024
+    `Anda adalah seorang asisten ahli penulisan notulensi kajian Islam. Tugas Anda adalah menyusun Notulensi Kajian yang sangat rapi, indah, dan terstruktur berdasarkan teks transkripsi kajian Islam yang diberikan.
+
+Gunakan format Markdown yang estetik dengan pembagian struktur berikut:
+
+# 📝 NOTULENSI KAJIAN
+
+### ℹ️ IDENTITAS KAJIAN
+| Informasi | Detail |
+| --- | --- |
+| **Pemateri** | [Nama Ustadz/Pemateri jika terdeteksi dalam teks, jika tidak isi dengan "-"] |
+| **Tema Kajian** | [Judul/Tema utama berdasarkan isi pembahasan] |
+| **Fokus Pembahasan** | [1 kalimat rangkuman fokus pembahasan] |
+
+---
+
+### 🔑 POIN-POIN UTAMA (KEY TAKEAWAYS)
+- Tuliskan 3-5 poin utama yang menjadi inti pesan dari kajian ini secara singkat dan padat.
+
+---
+
+### 📖 PEMBAHASAN DETAIL
+Gunakan sub-heading (contoh: **1. Konsep Gotong Royong**) untuk membagi pembahasan menjadi bab-bab terstruktur. 
+Jelaskan narasi dan poin-poin penting di bawah setiap sub-heading secara mendalam namun mudah dipahami.
+Sertakan contoh kisah sahabat, periwayatan, analogi, atau ilustrasi yang disebutkan dalam kajian secara lengkap (misal kisah paman Anas bin Malik bernama Haram yang dikirim belajar Quran bersama 70 orang Ansar ahli Quran, atau kisah Abu Hurairah yang telat shalat Isya dan konsep berbagi makanan).
+
+---
+
+### 💡 PELAJARAN PRAKTIS (ACTIONABLE INSIGHTS)
+- Berikan daftar tindakan nyata atau aplikasi praktis yang bisa diamalkan oleh pendengar dalam kehidupan sehari-hari berdasarkan materi kajian.
+
+Teks Transkripsi Kajian:
+${trimmed}`,
+    2048
   );
 }
 
 async function detectDalils(groq, transcript) {
-  const trimmed = transcript.slice(0, 2000);
+  const trimmed = transcript.slice(0, 25000);
   const text = await callGroq(
     groq,
-    `Dari teks kajian Islam ini, temukan ayat Al-Quran atau Hadits yang disebut. Kembalikan HANYA JSON array:
-[{"type":"quran","reference":"Al-Baqarah: 183","text_ar":"","text_id":"...","confidence":0.9}]
-Jika tidak ada, kembalikan: []
+    `Tugas Anda adalah mendeteksi semua dalil berupa ayat Al-Quran atau Hadits yang disebutkan, dirujuk, atau diceritakan kisahnya dalam teks transkripsi kajian Islam berikut.
 
-Teks: ${trimmed}`,
-    1024
+Untuk setiap dalil yang terdeteksi:
+1. Tentukan jenisnya ("quran" atau "hadits").
+2. Tuliskan referensinya secara jelas (misal: "Al-Baqarah: 183" untuk Quran, atau nama periwayat hadits seperti "HR. Bukhari (Narasi Anas bin Malik)" atau "HR. Muslim" jika terdeteksi, atau sebutkan nama sahabat utama seperti "Anas bin Malik" atau "Abu Hurairah" sebagai referensi utama).
+3. Cari di memori/knowledge base Anda dan tuliskan teks asli bahasa Arab lengkap dengan harakat/tanda baca di kolom "text_ar". PASTIKAN teks Arab ini akurat, lengkap, dan benar. JANGAN biarkan kosong atau berisi "...".
+4. Tuliskan terjemahan lengkap dalam Bahasa Indonesia di kolom "text_id". JANGAN biarkan kosong atau berisi "...".
+5. Tentukan tingkat keyakinan (confidence) dari skala 0.0 hingga 1.0.
+
+Kembalikan hasil analisis Anda HANYA dalam format JSON array valid seperti contoh di bawah ini (tanpa teks penjelasan lainnya):
+[
+  {
+    "type": "quran",
+    "reference": "Al-Baqarah: 183",
+    "text_ar": "يَا أَيُّهَا الَّذِينَ آمَنُوا كُتِبَ عَلَيْكُمُ الصِّيَامُ كَمَا كُتِبَ عَلَى الَّذِينَ مِنْ قَبْلِكُمْ لَعَلَّكُمْ تَتَّقُونَ",
+    "text_id": "Wahai orang-orang yang beriman! Diwajibkan atas kamu berpuasa sebagaimana diwajibkan atas orang sebelum kamu agar kamu bertakwa.",
+    "confidence": 0.95
+  },
+  {
+    "type": "hadits",
+    "reference": "HR. Muslim (Narasi Anas bin Malik)",
+    "text_ar": "الدَّالُّ عَلَى الْخَيْرِ كَفَاعِلِهِ",
+    "text_id": "Orang yang menunjukkan kepada kebaikan, akan mendapatkan pahala seperti orang yang melakukannya.",
+    "confidence": 0.90
+  }
+]
+
+Teks Transkripsi Kajian:
+${trimmed}`,
+    2048
   );
 
   try {

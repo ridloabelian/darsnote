@@ -30,24 +30,6 @@ export class MediaProcessorContainer extends Container<CloudflareEnv> {
   }
 }
 
-(MediaProcessorContainer as typeof MediaProcessorContainer & {
-  outboundByHost: Record<string, ExportedHandlerFetchHandler<CloudflareEnv>>;
-}).outboundByHost = {
-  "r2.local": async (request, env) => {
-    const cloudflareEnv = env as CloudflareEnv;
-    const url = new URL(request.url);
-    const key = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
-    if (!key) return new Response("Missing R2 object key", { status: 400 });
-
-    const object = await cloudflareEnv.MEDIA_BUCKET.get(key);
-    if (!object?.body) return new Response("Not found", { status: 404 });
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-    return new Response(object.body, { headers });
-  },
-};
 
 export class TranscriptionWorkflow extends WorkflowEntrypoint<
   CloudflareEnv,
@@ -84,7 +66,7 @@ export class TranscriptionWorkflow extends WorkflowEntrypoint<
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 ...payload,
-                r2BaseUrl: "http://r2.local",
+                r2BaseUrl: "http://host.docker.internal:8787/api/media-download",
                 groqApiKey: this.env.GROQ_API_KEY,
               }),
             }

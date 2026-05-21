@@ -4,7 +4,7 @@
   "main": "cloudflare/web-worker.ts",
   "base_dir": ".open-next/server-functions/default",
   "find_additional_modules": true,
-  "compatibility_date": "2026-05-20",
+  "compatibility_date": "2026-04-22",
   "compatibility_flags": [
     "nodejs_compat",
     "global_fetch_strictly_public"

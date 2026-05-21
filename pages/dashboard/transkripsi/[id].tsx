@@ -210,6 +210,16 @@ function MarkdownRenderer({ content }: { content: string }) {
       continue;
     }
 
+    if (line.startsWith('#### ')) {
+      flushList(String(i));
+      elements.push(
+        <h4 key={`h4-${i}`} className="text-sm font-bold text-[#1A5276] mt-3.5 mb-1.5 flex items-center gap-2">
+          {renderInline(line.slice(5))}
+        </h4>
+      );
+      continue;
+    }
+
     // Lists
     if (line.startsWith('- ') || line.startsWith('* ')) {
       inList = true;

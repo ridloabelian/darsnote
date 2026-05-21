@@ -65,6 +65,182 @@ function formatDuration(seconds: number): string {
   return `${m}m ${s}s`;
 }
 
+function renderInline(text: string): React.ReactNode {
+  if (!text) return '';
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={index} className="font-bold text-gray-900">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
+}
+
+function MarkdownRenderer({ content }: { content: string }) {
+  if (!content) return <span className="text-gray-400">—</span>;
+
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+
+  let inTable = false;
+  let tableHeaders: string[] = [];
+  let tableRows: string[][] = [];
+  
+  let inList = false;
+  let listItems: React.ReactNode[] = [];
+
+  const flushList = (key: string) => {
+    if (inList && listItems.length > 0) {
+      elements.push(
+        <ul key={`list-${key}`} className="list-disc pl-5 my-3 space-y-1.5 text-gray-700 text-sm">
+          {listItems}
+        </ul>
+      );
+      listItems = [];
+      inList = false;
+    }
+  };
+
+  const flushTable = (key: string) => {
+    if (inTable && tableHeaders.length > 0) {
+      elements.push(
+        <div key={`table-${key}`} className="overflow-hidden border border-gray-200 rounded-lg my-4 shadow-sm">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-[#1A5276]/5">
+              <tr>
+                {tableHeaders.map((h, idx) => (
+                  <th
+                    key={idx}
+                    className="px-4 py-2.5 text-left text-xs font-semibold text-[#1A5276] uppercase tracking-wider border-b border-gray-200"
+                  >
+                    {renderInline(h)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {tableRows.map((row, rowIdx) => (
+                <tr key={rowIdx} className={rowIdx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}>
+                  {row.map((cell, cellIdx) => (
+                    <td
+                      key={cellIdx}
+                      className="px-4 py-2.5 text-sm text-gray-700 font-medium"
+                    >
+                      {renderInline(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      tableHeaders = [];
+      tableRows = [];
+      inTable = false;
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Table line
+    if (line.startsWith('|')) {
+      flushList(String(i));
+      const cells = line
+        .split('|')
+        .map((c) => c.trim())
+        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+
+      const isSeparator = cells.every((c) => /^[:-]+$/.test(c) || c === '');
+      if (isSeparator) {
+        continue;
+      }
+
+      if (!inTable) {
+        inTable = true;
+        tableHeaders = cells;
+      } else {
+        tableRows.push(cells);
+      }
+      continue;
+    } else {
+      flushTable(String(i));
+    }
+
+    // Horizontal Rule
+    if (line === '---') {
+      flushList(String(i));
+      elements.push(<hr key={`hr-${i}`} className="my-5 border-gray-200" />);
+      continue;
+    }
+
+    // Headings
+    if (line.startsWith('# ')) {
+      flushList(String(i));
+      elements.push(
+        <h1 key={`h1-${i}`} className="text-xl font-extrabold text-[#1A5276] mt-6 mb-4 pb-1.5 border-b border-gray-100 flex items-center gap-2">
+          {renderInline(line.slice(2))}
+        </h1>
+      );
+      continue;
+    }
+
+    if (line.startsWith('## ')) {
+      flushList(String(i));
+      elements.push(
+        <h2 key={`h2-${i}`} className="text-lg font-bold text-gray-800 mt-5 mb-3 flex items-center gap-2">
+          {renderInline(line.slice(3))}
+        </h2>
+      );
+      continue;
+    }
+
+    if (line.startsWith('### ')) {
+      flushList(String(i));
+      elements.push(
+        <h3 key={`h3-${i}`} className="text-base font-bold text-gray-800 mt-4 mb-2 flex items-center gap-2">
+          {renderInline(line.slice(4))}
+        </h3>
+      );
+      continue;
+    }
+
+    // Lists
+    if (line.startsWith('- ') || line.startsWith('* ')) {
+      inList = true;
+      listItems.push(
+        <li key={`li-${i}`} className="leading-relaxed">
+          {renderInline(line.substring(2))}
+        </li>
+      );
+      continue;
+    }
+
+    // Paragraph
+    if (line !== '') {
+      flushList(String(i));
+      elements.push(
+        <p key={`p-${i}`} className="text-gray-700 leading-relaxed mb-3 text-sm">
+          {renderInline(line)}
+        </p>
+      );
+    } else {
+      flushList(String(i));
+    }
+  }
+
+  // Final flush
+  flushList('final');
+  flushTable('final');
+
+  return <div className="space-y-1">{elements}</div>;
+}
+
 export default function TranskripsiDetailPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -240,10 +416,8 @@ export default function TranskripsiDetailPage() {
                     )}
 
                     {activeResultTab === 'summary' && (
-                      <div className="prose prose-sm max-w-none">
-                        <p className="text-gray-800 whitespace-pre-wrap leading-relaxed text-sm">
-                          {data.summaryText || '—'}
-                        </p>
+                      <div className="max-w-none">
+                        <MarkdownRenderer content={data.summaryText || ''} />
                       </div>
                     )}
 
@@ -282,7 +456,7 @@ export default function TranskripsiDetailPage() {
                                 {dalil.textAr && (
                                   <p
                                     dir="rtl"
-                                    className="text-right text-base font-arabic text-gray-900 mb-2 leading-loose"
+                                    className="text-right font-arabic text-gray-900 mb-3"
                                   >
                                     {dalil.textAr}
                                   </p>

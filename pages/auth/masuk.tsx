@@ -113,7 +113,15 @@ export default function MasukPage({ googleEnabled }: MasukPageProps) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  href="/auth/lupa-password"
+                  className="text-xs font-medium text-[#148F77] hover:underline"
+                >
+                  Lupa password?
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"

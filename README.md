@@ -36,7 +36,7 @@ npm install
 cp .dev.vars.example .dev.vars
 ```
 
-Isi `.dev.vars` dengan `NEXTAUTH_SECRET`, kredensial Google OAuth, dan `GROQ_API_KEY`.
+Isi `.dev.vars` dengan `NEXTAUTH_SECRET`, kredensial Google OAuth, `GROQ_API_KEY`, dan `RESEND_API_KEY` jika ingin menguji email reset password.
 
 ### Resource Cloudflare
 
@@ -63,6 +63,8 @@ npx wrangler secret put NEXTAUTH_SECRET
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put GROQ_API_KEY
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put EMAIL_FROM
 ```
 
 Preview lokal di runtime Workers:
